@@ -17,5 +17,31 @@ services:
       timeout: 5s
       retries: 5
 
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mealsaver-backend
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://mealsaver:mealsaver@postgres:5432/mealsaver
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ../frontend_mealate/mealate
+      dockerfile: Dockerfile
+    container_name: mealsaver-frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+
 volumes:
   postgres_data:
