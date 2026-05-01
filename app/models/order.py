@@ -51,6 +51,12 @@ class Order(Base):
     delivery_address: Mapped[str] = mapped_column(String(255), nullable=False)
     delivery_lat: Mapped[float | None] = mapped_column(Float, nullable=True)
     delivery_lng: Mapped[float | None] = mapped_column(Float, nullable=True)
+    donation_amount: Mapped[Decimal] = mapped_column(
+        Numeric(10, 2), nullable=False, default=Decimal("0.00"), server_default="0"
+    )
+    wallet_subsidy: Mapped[Decimal] = mapped_column(
+        Numeric(10, 2), nullable=False, default=Decimal("0.00"), server_default="0"
+    )
     estimated_delivery_time: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )

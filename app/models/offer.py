@@ -28,6 +28,7 @@ class Offer(Base):
     )
     original_price: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     discounted_price: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
+    student_price: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
     quantity_available: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     expiry_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     is_active: Mapped[bool] = mapped_column(

@@ -11,6 +11,7 @@ class OfferBase(BaseModel):
     photos: list[str] = Field(default_factory=list)
     original_price: Decimal = Field(ge=0, decimal_places=2)
     discounted_price: Decimal = Field(ge=0, decimal_places=2)
+    student_price: Decimal | None = Field(default=None, ge=0, decimal_places=2)
     quantity_available: int = Field(ge=0)
     expiry_time: datetime
     is_active: bool = True
@@ -26,6 +27,7 @@ class OfferUpdate(BaseModel):
     photos: list[str] | None = None
     original_price: Decimal | None = Field(default=None, ge=0, decimal_places=2)
     discounted_price: Decimal | None = Field(default=None, ge=0, decimal_places=2)
+    student_price: Decimal | None = Field(default=None, ge=0, decimal_places=2)
     quantity_available: int | None = Field(default=None, ge=0)
     expiry_time: datetime | None = None
     is_active: bool | None = None

@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import Float, ForeignKey, String
+from sqlalchemy import Boolean, Float, ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -24,6 +24,7 @@ class CustomerProfile(Base):
     default_address: Mapped[str | None] = mapped_column(String(255), nullable=True)
     default_lat: Mapped[float | None] = mapped_column(Float, nullable=True)
     default_lng: Mapped[float | None] = mapped_column(Float, nullable=True)
+    is_student: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
 
     user = relationship("User", back_populates="customer_profile")
     orders = relationship(

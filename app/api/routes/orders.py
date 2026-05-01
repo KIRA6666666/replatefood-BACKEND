@@ -11,7 +11,9 @@ from app.crud import customer_profile as customer_crud
 from app.crud import offer as offer_crud
 from app.crud import order as order_crud
 from app.crud import restaurant_profile as restaurant_crud
+from app.crud import wallet as wallet_crud
 from app.models.order import Order, OrderStatus
+from app.models.wallet import WalletTransaction, WalletTransactionType
 from app.models.user import UserRole
 from app.schemas.order import OrderCreate, OrderRead, OrderStatusUpdate
 
@@ -63,7 +65,24 @@ async def place_order(
         )
 
     delivery_fee: Decimal = settings.DEFAULT_DELIVERY_FEE
-    total_price = (offer.discounted_price * payload.quantity) + delivery_fee
+
+    # Determine unit price and wallet subsidy for student orders.
+    wallet_subsidy = Decimal("0.00")
+    if offer.student_price is not None and customer.is_student:
+        pending_subsidy_needed = (offer.discounted_price - offer.student_price) * payload.quantity
+        wallet = await wallet_crud.get_wallet(db)
+        wallet_subsidy = min(pending_subsidy_needed, wallet.balance)
+        wallet.balance -= wallet_subsidy
+        # Subsidy covers part or all of the gap; student pays the remainder above student_price.
+        unit_price = offer.discounted_price - (wallet_subsidy / payload.quantity)
+    else:
+        unit_price = offer.discounted_price
+
+    total_price = (unit_price * payload.quantity) + delivery_fee
+
+    # Apply donor's optional solidarity contribution.
+    donation = payload.donation_amount if not customer.is_student else Decimal("0.00")
+    total_price += donation
 
     offer.quantity_available -= payload.quantity
     if offer.quantity_available == 0:
@@ -79,9 +98,23 @@ async def place_order(
         delivery_address=payload.delivery_address,
         delivery_lat=payload.delivery_lat,
         delivery_lng=payload.delivery_lng,
+        donation_amount=donation,
+        wallet_subsidy=wallet_subsidy,
         status=OrderStatus.pending,
     )
     db.add(order)
+    await db.flush()  # get order.id before logging the donation transaction
+
+    if donation > 0:
+        await wallet_crud.add_donation(db, donation, order.id)
+
+    if wallet_subsidy > 0:
+        db.add(WalletTransaction(
+            type=WalletTransactionType.redemption,
+            amount=wallet_subsidy,
+            order_id=order.id,
+        ))
+
     await db.commit()
     await db.refresh(order)
     return OrderRead.model_validate(order)

@@ -13,6 +13,7 @@ class OrderCreate(BaseModel):
     delivery_address: str = Field(min_length=1, max_length=255)
     delivery_lat: float | None = Field(default=None, ge=-90, le=90)
     delivery_lng: float | None = Field(default=None, ge=-180, le=180)
+    donation_amount: Decimal = Field(default=Decimal("0.00"), ge=0, decimal_places=2)
 
 
 class OrderRead(BaseModel):
@@ -29,6 +30,8 @@ class OrderRead(BaseModel):
     delivery_lat: float | None
     delivery_lng: float | None
     estimated_delivery_time: datetime | None
+    donation_amount: Decimal
+    wallet_subsidy: Decimal
     status: OrderStatus
     created_at: datetime
 
