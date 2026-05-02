@@ -21,6 +21,8 @@ async def list_offers(
     min_price: Decimal | None = None,
     max_price: Decimal | None = None,
     location: str | None = None,
+    cuisine_type: str | None = None,
+    meal_category: str | None = None,
     skip: int = 0,
     limit: int = 50,
 ) -> list[Offer]:
@@ -44,6 +46,10 @@ async def list_offers(
         stmt = stmt.join(RestaurantProfile, RestaurantProfile.id == Offer.restaurant_id).where(
             RestaurantProfile.location.ilike(f"%{location}%")
         )
+    if cuisine_type:
+        stmt = stmt.where(Offer.cuisine_type == cuisine_type)
+    if meal_category:
+        stmt = stmt.where(Offer.meal_category == meal_category)
     stmt = stmt.order_by(Offer.created_at.desc()).offset(skip).limit(limit)
     result = await db.execute(stmt)
     return list(result.scalars().all())

@@ -21,6 +21,8 @@ async def list_offers(
     min_price: Annotated[Decimal | None, Query(ge=0)] = None,
     max_price: Annotated[Decimal | None, Query(ge=0)] = None,
     location: str | None = None,
+    cuisine_type: str | None = None,
+    meal_category: str | None = None,
     skip: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
 ) -> list[OfferRead]:
@@ -31,6 +33,8 @@ async def list_offers(
         min_price=min_price,
         max_price=max_price,
         location=location,
+        cuisine_type=cuisine_type,
+        meal_category=meal_category,
         skip=skip,
         limit=limit,
     )

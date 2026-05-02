@@ -23,6 +23,9 @@ class Offer(Base):
     )
     meal_name: Mapped[str] = mapped_column(String(150), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    cuisine_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    meal_category: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    pickup_time_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)
     photos: Mapped[list[str]] = mapped_column(
         ARRAY(String(512)), nullable=False, default=list, server_default="{}"
     )
@@ -31,6 +34,12 @@ class Offer(Base):
     student_price: Mapped[Decimal | None] = mapped_column(Numeric(10, 2), nullable=True)
     quantity_available: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     expiry_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    delivery_available: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+    inplace_available: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default="true"
+    )
     is_active: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, server_default="true"
     )

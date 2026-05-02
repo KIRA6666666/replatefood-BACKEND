@@ -27,3 +27,8 @@ class UserRead(UserBase):
     id: uuid.UUID
     role: UserRole
     created_at: datetime
+
+
+class ChangePassword(BaseModel):
+    current_password: str
+    new_password: str = Field(min_length=8, max_length=128)

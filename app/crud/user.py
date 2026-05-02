@@ -40,3 +40,10 @@ async def authenticate(db: AsyncSession, email: str, password: str) -> User | No
     if user is None or not verify_password(password, user.password_hash):
         return None
     return user
+
+
+async def change_password(db: AsyncSession, user: User, new_password: str) -> User:
+    user.password_hash = hash_password(new_password)
+    await db.commit()
+    await db.refresh(user)
+    return user

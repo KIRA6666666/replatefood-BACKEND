@@ -15,6 +15,11 @@ class OfferBase(BaseModel):
     quantity_available: int = Field(ge=0)
     expiry_time: datetime
     is_active: bool = True
+    delivery_available: bool = False
+    inplace_available: bool = True
+    cuisine_type: str | None = Field(default=None, max_length=50)
+    meal_category: str | None = Field(default=None, max_length=50)
+    pickup_time_minutes: int | None = Field(default=None, ge=1)
 
 
 class OfferCreate(OfferBase):
@@ -31,6 +36,11 @@ class OfferUpdate(BaseModel):
     quantity_available: int | None = Field(default=None, ge=0)
     expiry_time: datetime | None = None
     is_active: bool | None = None
+    delivery_available: bool | None = None
+    inplace_available: bool | None = None
+    cuisine_type: str | None = Field(default=None, max_length=50)
+    meal_category: str | None = Field(default=None, max_length=50)
+    pickup_time_minutes: int | None = Field(default=None, ge=1)
 
 
 class OfferRead(OfferBase):
