@@ -15,6 +15,7 @@ from app.core.security import create_access_token, create_reset_token, verify_re
 from app.crud import user as user_crud
 from app.models.account_verification_otp import AccountVerificationOTP
 from app.models.password_reset_otp import PasswordResetOTP
+from app.models.user import UserRole
 from app.schemas.token import Token
 from app.schemas.user import UserCreate, UserRead
 
@@ -42,6 +43,8 @@ class ResetPasswordRequest(BaseModel):
     new_password: str = Field(min_length=8, max_length=128)
 
 
+STUDENT_EMAIL_DOMAIN = "@uca.ac.ma"
+
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
@@ -60,6 +63,13 @@ async def _create_and_send_verification_otp(db: DbSession, user) -> str:
 
 @router.post("/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
 async def register(payload: UserCreate, db: DbSession) -> UserRead:
+    if payload.role == UserRole.student and not payload.email.lower().endswith(STUDENT_EMAIL_DOMAIN):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Student accounts require a {STUDENT_EMAIL_DOMAIN} email address",
+        )
+    if payload.role != UserRole.student and payload.email.lower().endswith(STUDENT_EMAIL_DOMAIN):
+        payload = payload.model_copy(update={"role": UserRole.student})
     if await user_crud.get_by_email(db, payload.email):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="Email already registered"
