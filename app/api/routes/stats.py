@@ -1,42 +1,37 @@
-from decimal import Decimal
-
 from fastapi import APIRouter
 from pydantic import BaseModel
 from sqlalchemy import func, select
 
 from app.api.deps import DbSession
-from app.models.order import Order, OrderStatus
-from app.models.user import User, UserRole
-from app.models.wallet import Wallet
+from app.models.offer import Offer
+from app.models.restaurant_profile import RestaurantProfile, RestaurantStatus
+from app.models.user import User
 
 router = APIRouter(prefix="/stats", tags=["stats"])
 
 
 class PlatformStats(BaseModel):
-    meals_rescued: int
-    fund_balance: float
-    students_helped: int
+    total_users: int
+    total_restaurants: int
+    total_offers: int
 
 
 @router.get("", response_model=PlatformStats)
 async def get_stats(db: DbSession) -> PlatformStats:
-    meals_rescued = (
+    total_users = (await db.execute(select(func.count(User.id)))).scalar_one()
+
+    total_restaurants = (
         await db.execute(
-            select(func.count(Order.id)).where(Order.status == OrderStatus.delivered)
+            select(func.count(RestaurantProfile.id)).where(
+                RestaurantProfile.status == RestaurantStatus.approved
+            )
         )
     ).scalar_one()
 
-    wallet = await db.get(Wallet, 1)
-    fund_balance = float(wallet.balance) if wallet else 0.0
-
-    students_helped = (
-        await db.execute(
-            select(func.count(User.id)).where(User.role == UserRole.student)
-        )
-    ).scalar_one()
+    total_offers = (await db.execute(select(func.count(Offer.id)))).scalar_one()
 
     return PlatformStats(
-        meals_rescued=int(meals_rescued),
-        fund_balance=fund_balance,
-        students_helped=int(students_helped),
+        total_users=int(total_users),
+        total_restaurants=int(total_restaurants),
+        total_offers=int(total_offers),
     )
