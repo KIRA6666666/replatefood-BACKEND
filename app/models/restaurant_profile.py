@@ -47,3 +47,4 @@ class RestaurantProfile(Base):
         "Offer", back_populates="restaurant", cascade="all, delete-orphan"
     )
     orders = relationship("Order", back_populates="restaurant")
+    offer_templates = relationship("OfferTemplate", back_populates="restaurant", cascade="all, delete-orphan")
