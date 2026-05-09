@@ -34,3 +34,25 @@ def decode_access_token(token: str) -> dict[str, Any]:
         return jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
     except JWTError as exc:
         raise ValueError("invalid token") from exc
+
+
+def create_reset_token(user_id: str, expires_minutes: int = 15) -> str:
+    expire = datetime.now(timezone.utc) + timedelta(minutes=expires_minutes)
+    payload: dict[str, Any] = {
+        "sub": user_id,
+        "purpose": "password_reset",
+        "exp": expire,
+        "iat": datetime.now(timezone.utc),
+    }
+    return jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
+
+
+def verify_reset_token(token: str) -> str:
+    """Returns user_id if the token is valid. Raises ValueError otherwise."""
+    try:
+        payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[settings.JWT_ALGORITHM])
+    except JWTError as exc:
+        raise ValueError("invalid or expired token") from exc
+    if payload.get("purpose") != "password_reset":
+        raise ValueError("invalid token purpose")
+    return str(payload["sub"])
