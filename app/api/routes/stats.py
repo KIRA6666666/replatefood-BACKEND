@@ -5,8 +5,8 @@ from pydantic import BaseModel
 from sqlalchemy import func, select
 
 from app.api.deps import DbSession
-from app.models.customer_profile import CustomerProfile
 from app.models.order import Order, OrderStatus
+from app.models.user import User, UserRole
 from app.models.wallet import Wallet
 
 router = APIRouter(prefix="/stats", tags=["stats"])
@@ -31,9 +31,7 @@ async def get_stats(db: DbSession) -> PlatformStats:
 
     students_helped = (
         await db.execute(
-            select(func.count(CustomerProfile.id)).where(
-                CustomerProfile.is_student.is_(True)
-            )
+            select(func.count(User.id)).where(User.role == UserRole.student)
         )
     ).scalar_one()
 

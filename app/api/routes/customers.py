@@ -12,7 +12,7 @@ from app.schemas.customer_profile import (
 router = APIRouter(
     prefix="/customers",
     tags=["customers"],
-    dependencies=[Depends(require_role(UserRole.customer))],
+    dependencies=[Depends(require_role(UserRole.customer, UserRole.student))],
 )
 
 

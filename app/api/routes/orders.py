@@ -34,7 +34,7 @@ _RESTAURANT_TRANSITIONS: dict[OrderStatus, set[OrderStatus]] = {
     "",
     response_model=OrderRead,
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(require_role(UserRole.customer))],
+    dependencies=[Depends(require_role(UserRole.customer, UserRole.student))],
 )
 async def place_order(
     payload: OrderCreate, db: DbSession, current_user: CurrentUser
@@ -67,8 +67,9 @@ async def place_order(
     delivery_fee: Decimal = settings.DEFAULT_DELIVERY_FEE
 
     # Determine unit price and wallet subsidy for student orders.
+    is_student = current_user.role == UserRole.student
     wallet_subsidy = Decimal("0.00")
-    if offer.student_price is not None and customer.is_student:
+    if offer.student_price is not None and is_student:
         pending_subsidy_needed = (offer.discounted_price - offer.student_price) * payload.quantity
         wallet = await wallet_crud.get_wallet(db)
         wallet_subsidy = min(pending_subsidy_needed, wallet.balance)
@@ -81,7 +82,7 @@ async def place_order(
     total_price = (unit_price * payload.quantity) + delivery_fee
 
     # Apply donor's optional solidarity contribution.
-    donation = payload.donation_amount if not customer.is_student else Decimal("0.00")
+    donation = payload.donation_amount if not is_student else Decimal("0.00")
     total_price += donation
 
     offer.quantity_available -= payload.quantity
@@ -123,7 +124,7 @@ async def place_order(
 @router.get(
     "/me",
     response_model=list[OrderRead],
-    dependencies=[Depends(require_role(UserRole.customer))],
+    dependencies=[Depends(require_role(UserRole.customer, UserRole.student))],
 )
 async def list_my_orders(
     db: DbSession,
@@ -173,7 +174,7 @@ async def get_order(
         )
     if current_user.role == UserRole.admin:
         return OrderRead.model_validate(order)
-    if current_user.role == UserRole.customer:
+    if current_user.role in (UserRole.customer, UserRole.student):
         customer = await customer_crud.get_by_user_id(db, current_user.id)
         if customer is None or order.customer_id != customer.id:
             raise HTTPException(
@@ -229,7 +230,7 @@ async def update_order_status(
 @router.post(
     "/{order_id}/cancel",
     response_model=OrderRead,
-    dependencies=[Depends(require_role(UserRole.customer))],
+    dependencies=[Depends(require_role(UserRole.customer, UserRole.student))],
 )
 async def cancel_my_order(
     order_id: uuid.UUID, db: DbSession, current_user: CurrentUser

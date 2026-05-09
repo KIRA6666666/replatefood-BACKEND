@@ -3,7 +3,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 
 from app.api.deps import DbSession, require_role
 from app.crud import order as order_crud
@@ -26,6 +26,16 @@ router = APIRouter(
 )
 
 
+class PaginatedUsers(BaseModel):
+    items: list[UserRead]
+    total: int
+
+
+class PaginatedRestaurants(BaseModel):
+    items: list[RestaurantProfileRead]
+    total: int
+
+
 class PlatformAnalytics(BaseModel):
     total_users: int
     total_customers: int
@@ -39,19 +49,26 @@ class PlatformAnalytics(BaseModel):
     orders_by_status: dict[str, int]
 
 
-@router.get("/users", response_model=list[UserRead])
+@router.get("/users", response_model=PaginatedUsers)
 async def list_users(
     db: DbSession,
     role: UserRole | None = None,
+    search: str | None = None,
     skip: Annotated[int, Query(ge=0)] = 0,
-    limit: Annotated[int, Query(ge=1, le=500)] = 100,
-) -> list[UserRead]:
+    limit: Annotated[int, Query(ge=1, le=500)] = 15,
+) -> PaginatedUsers:
     stmt = select(User)
     if role is not None:
         stmt = stmt.where(User.role == role)
-    stmt = stmt.order_by(User.created_at.desc()).offset(skip).limit(limit)
-    result = await db.execute(stmt)
-    return [UserRead.model_validate(u) for u in result.scalars().all()]
+    if search:
+        pattern = f"%{search}%"
+        stmt = stmt.where(or_(User.username.ilike(pattern), User.email.ilike(pattern)))
+    total = (await db.execute(select(func.count()).select_from(stmt.subquery()))).scalar_one()
+    result = await db.execute(stmt.order_by(User.created_at.desc()).offset(skip).limit(limit))
+    return PaginatedUsers(
+        items=[UserRead.model_validate(u) for u in result.scalars().all()],
+        total=int(total),
+    )
 
 
 @router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -65,17 +82,28 @@ async def delete_user(user_id: uuid.UUID, db: DbSession) -> None:
     await db.commit()
 
 
-@router.get("/restaurants", response_model=list[RestaurantProfileRead])
+@router.get("/restaurants", response_model=PaginatedRestaurants)
 async def list_restaurants(
     db: DbSession,
     restaurant_status: Annotated[RestaurantStatus | None, Query(alias="status")] = None,
+    search: str | None = None,
     skip: Annotated[int, Query(ge=0)] = 0,
-    limit: Annotated[int, Query(ge=1, le=500)] = 100,
-) -> list[RestaurantProfileRead]:
-    profiles = await restaurant_crud.list_all(
-        db, status=restaurant_status, skip=skip, limit=limit
+    limit: Annotated[int, Query(ge=1, le=500)] = 15,
+) -> PaginatedRestaurants:
+    stmt = select(RestaurantProfile)
+    if restaurant_status is not None:
+        stmt = stmt.where(RestaurantProfile.status == restaurant_status)
+    if search:
+        pattern = f"%{search}%"
+        stmt = stmt.where(
+            or_(RestaurantProfile.name.ilike(pattern), RestaurantProfile.location.ilike(pattern))
+        )
+    total = (await db.execute(select(func.count()).select_from(stmt.subquery()))).scalar_one()
+    result = await db.execute(stmt.order_by(RestaurantProfile.name).offset(skip).limit(limit))
+    return PaginatedRestaurants(
+        items=[RestaurantProfileRead.model_validate(p) for p in result.scalars().all()],
+        total=int(total),
     )
-    return [RestaurantProfileRead.model_validate(p) for p in profiles]
 
 
 @router.patch("/restaurants/{restaurant_id}/status", response_model=RestaurantProfileRead)
