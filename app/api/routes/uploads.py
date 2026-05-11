@@ -83,19 +83,14 @@ def upload_to_s3(
     )
     extension = content_type.split("/")[-1]
     s3_key = f"{folder}/{uuid.uuid4().hex}.{extension}"
-    s3.upload_fileobj(
-        io.BytesIO(file_bytes),
-        bucket,
-        s3_key,
-        ExtraArgs={"ContentType": content_type}
-    )
+    if s3.upload_fileobj(
+        io.BytesIO(file_bytes), bucket, s3_key, ExtraArgs={"ContentType": content_type}
+    ):
+        print("IMAGE UPLOADED")
     url = s3.generate_presigned_url(
-        "get_object",
-        Params={"Bucket": bucket, "Key": s3_key},
-        ExpiresIn=3600
+        "get_object", Params={"Bucket": bucket, "Key": s3_key}, ExpiresIn=3600
     )
     return url
-    
 
 
 @router.post("/image", status_code=status.HTTP_201_CREATED)
@@ -118,7 +113,8 @@ async def upload_image(file: UploadFile, _: CurrentUser) -> dict[str, str]:
         ext = "jpg"
 
     filename = f"{uuid.uuid4().hex}.{ext}"
-    
+
     url = upload_to_s3(data, bucket="mealate")
+    print("url: ", url)
 
     return {"url": url}
