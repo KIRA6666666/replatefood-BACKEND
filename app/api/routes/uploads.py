@@ -35,5 +35,4 @@ async def upload_image(file: UploadFile, request: Request, _: CurrentUser) -> di
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
     (UPLOAD_DIR / filename).write_bytes(data)
 
-    base_url = str(request.base_url).rstrip('/')
-    return {"url": f"{base_url}/static/uploads/{filename}"}
+    return {"url": f"/static/uploads/{filename}"}
