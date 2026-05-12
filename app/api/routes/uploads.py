@@ -1,7 +1,7 @@
 import uuid
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, UploadFile, status
+from fastapi import APIRouter, HTTPException, Request, UploadFile, status
 
 from app.api.deps import CurrentUser
 
@@ -13,7 +13,7 @@ router = APIRouter(prefix="/uploads", tags=["uploads"])
 
 
 @router.post("/image", status_code=status.HTTP_201_CREATED)
-async def upload_image(file: UploadFile, _: CurrentUser) -> dict[str, str]:
+async def upload_image(file: UploadFile, request: Request, _: CurrentUser) -> dict[str, str]:
     if file.content_type not in ALLOWED_TYPES:
         raise HTTPException(
             status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
@@ -35,4 +35,5 @@ async def upload_image(file: UploadFile, _: CurrentUser) -> dict[str, str]:
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
     (UPLOAD_DIR / filename).write_bytes(data)
 
-    return {"url": f"/static/uploads/{filename}"}
+    base_url = str(request.base_url).rstrip('/')
+    return {"url": f"{base_url}/static/uploads/{filename}"}
