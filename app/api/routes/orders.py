@@ -64,7 +64,7 @@ async def place_order(
             detail="Not enough portions available",
         )
 
-    delivery_fee: Decimal = settings.DEFAULT_DELIVERY_FEE
+    delivery_fee = Decimal("0.00") if payload.delivery_address == "Sur place" else settings.DEFAULT_DELIVERY_FEE
 
     # Determine unit price and wallet subsidy for student orders.
     is_student = current_user.role == UserRole.student
