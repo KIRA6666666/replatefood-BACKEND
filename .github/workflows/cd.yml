@@ -36,7 +36,7 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: arn:aws:iam::247794289307:role/deploy-role
+          role-to-assume: arn:aws:iam::247794289307:role/github-action-deploy
           aws-region: us-east-1
 
       - name: Resolve image tag from CI run
