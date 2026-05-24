@@ -1,0 +1,147 @@
+# .github/workflows/cd.yml
+name: CD
+
+on:
+  # Triggers after CI completes successfully on main
+  workflow_run:
+    workflows: ["Test & Lint"]
+    types: [completed]
+    branches: [main]
+
+env:
+  ECR_REGISTRY: ${{ secrets.REGISTRY_URI }}
+  IMAGE_NAME: ${{ secrets.IMAGE_NAME }}
+
+jobs:
+  check-ci:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - run: echo "CI passed — proceeding with deploy"
+
+  # ─── Stage 1: Deploy to Staging ───────────────────────────────
+  deploy-staging:
+    name: Deploy → Staging
+    runs-on: ubuntu-latest
+    needs: check-ci
+    environment: staging        # Maps to GitHub Environment (optional approval)
+
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::247794289307:role/deploy-role
+          aws-region: us-east-1
+
+      - name: Resolve image tag from CI run
+        id: resolve
+        run: |
+          # The SHA that triggered CI is the artifact we deploy
+          echo "image_tag=${{ github.event.workflow_run.head_sha }}" >> $GITHUB_OUTPUT
+
+      - name: Deploy to EC2 Staging
+        run: |
+          IMAGE=$ECR_REGISTRY/$IMAGE_NAME:${{ steps.resolve.outputs.image_tag }}
+          INSTANCE_ID=${{ secrets.STAGING_INSTANCE_ID }}
+
+          aws ssm send-command \
+            --document-name "AWS-RunShellScript" \
+            --instance-ids "$INSTANCE_ID" \
+            --parameters 'commands=[
+              "#!/bin/bash",
+              "set -e",
+              "echo \"Pulling image: $IMAGE\"",
+              "aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${{ secrets.REGISTRY_URI }}",
+              "docker pull $IMAGE",
+              "echo \"Stopping old container...\"",
+              "docker stop myapp || true",
+              "docker rm myapp || true",
+              "echo \"Starting new container...\"",
+              "docker run -d --name myapp -p 8080:8080 $IMAGE",
+              "echo \"Waiting for health check...\"",
+              "sleep 5",
+              "curl -f http://localhost:8080/health || exit 1"
+            ]' \
+
+      - name: Smoke test staging
+        run: |
+          curl -f https://staging.myapp.com/health || exit 1
+
+  # # ─── Stage 2: Deploy to Production (manual gate) ─────────────
+  # deploy-production:
+  #   name: Deploy → Production
+  #   runs-on: ubuntu-latest
+  #   needs: deploy-staging
+  #   environment: production     # 👈 Set required reviewers in GitHub Settings
+  #                               #    This pauses here until a human approves
+
+  #   permissions:
+  #     id-token: write
+  #     contents: read
+
+  #   steps:
+  #     - uses: actions/checkout@v4
+
+  #     - name: Configure AWS credentials
+  #       uses: aws-actions/configure-aws-credentials@v4
+  #       with:
+  #         role-to-assume: arn:aws:iam::123456789:role/github-actions-role
+  #         aws-region: us-east-1
+
+  #     - name: Resolve image tag
+  #       id: resolve
+  #       run: |
+  #         echo "image_tag=${{ github.event.workflow_run.head_sha }}" >> $GITHUB_OUTPUT
+
+  #     - name: Deploy to EC2 Production
+  #       run: |
+  #         IMAGE=$ECR_REGISTRY/$IMAGE_NAME:${{ steps.resolve.outputs.image_tag }}
+  #         INSTANCE_ID=${{ secrets.PRODUCTION_INSTANCE_ID }}
+
+  #         aws ssm send-command \
+  #           --document-name "AWS-RunShellScript" \
+  #           --instance-ids "$INSTANCE_ID" \
+  #           --parameters 'commands=[
+  #             "#!/bin/bash",
+  #             "set -e",
+  #             "echo \"Pulling image: $IMAGE\"",
+  #             "aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${{ secrets.REGISTRY_URI }}",
+  #             "docker pull $IMAGE",
+  #             "echo \"Stopping old container...\"",
+  #             "docker stop myapp || true",
+  #             "docker rm myapp || true",
+  #             "echo \"Starting new container...\"",
+  #             "docker run -d --name myapp -p 8080:8080 $IMAGE",
+  #             "echo \"Waiting for health check...\"",
+  #             "sleep 5",
+  #             "curl -f http://localhost:8080/health || exit 1"
+  #           ]' \
+  #           --output-s3-bucket-name "${{ secrets.ARTIFACTS_BUCKET }}" \
+  #           --output-s3-key-prefix "deployments/production"
+
+  #     - name: Smoke test production
+  #       run: |
+  #         curl -f https://myapp.com/health || exit 1
+
+  #     - name: Notify on success
+  #       if: success()
+  #       run: |
+  #         echo "Deploy of ${{ steps.resolve.outputs.image_tag }} to production successful"
+  #         # Hook in Slack/PagerDuty notification here
+
+  #     - name: Rollback on failure
+  #       if: failure()
+  #       run: |
+  #         INSTANCE_ID=${{ secrets.PRODUCTION_INSTANCE_ID }}
+  #         aws ssm send-command \
+  #           --document-name "AWS-RunShellScript" \
+  #           --instance-ids "$INSTANCE_ID" \
+  #           --parameters 'commands=[
+  #             "docker restart myapp || docker start myapp"
+  #           ]'
