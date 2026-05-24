@@ -10,7 +10,7 @@ cffi==2.0.0
 click==8.3.3
 cryptography==47.0.0
 dnspython==2.8.0
-ecdsa==0.20.0
+ecdsa==0.19.2
 email-validator==2.2.0
 fastapi==0.115.0
 fastapi-cli==0.0.24
