@@ -5,7 +5,6 @@ annotated-types==0.7.0
 anyio==4.13.0
 asyncpg==0.30.0
 bcrypt==4.2.0
-black @ git+https://github.com/psf/black@9fd9ea2835973981e3f5dc5b8eb76f2ded46aa61
 certifi==2026.4.22
 cffi==2.0.0
 click==8.3.3
