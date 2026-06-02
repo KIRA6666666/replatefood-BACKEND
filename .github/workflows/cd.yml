@@ -71,7 +71,7 @@ jobs:
 
       - name: Smoke test staging
         run: |
-          curl -f ec2-3-85-192-156.compute-1.amazonaws.com/health || exit 1
+          curl -f ec2-54-198-61-210.compute-1.amazonaws.com/health || exit 1
 
   # # ─── Stage 2: Deploy to Production (manual gate) ─────────────
   # deploy-production:
