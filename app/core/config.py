@@ -25,6 +25,11 @@ class Settings(BaseSettings):
     SMTP_FROM: str = ""
     FRONTEND_URL: str = "http://localhost:5173"
 
+    LOG_LEVEL: str = "INFO"
+    LOG_FILE: str = "/home/moumni/Desktop/logs/app.log"
+    LOG_FORMAT: str = "auto"
+    LOG_JSON: bool = True
+
     CORS_ORIGINS: list[str] = [
         "http://localhost:5173",
         "http://127.0.0.1:5173",

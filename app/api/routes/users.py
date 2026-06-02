@@ -18,3 +18,8 @@ async def change_password(payload: ChangePassword, current_user: CurrentUser, db
     if not verify_password(payload.current_password, current_user.password_hash):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Mot de passe actuel incorrect")
     await user_crud.change_password(db, current_user, payload.new_password)
+
+
+@router.get("/infos")
+async def get_infos():
+    return {"app": "MealSaver", "version": "1.0.0"}

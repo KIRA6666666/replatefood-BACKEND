@@ -1,3 +1,4 @@
+import logging
 import uuid
 from typing import Annotated
 
@@ -5,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from pydantic import BaseModel
 from sqlalchemy import func, or_, select
 
-from app.api.deps import DbSession, require_role
+from app.api.deps import CurrentUser, DbSession, require_role
 from app.crud import order as order_crud
 from app.crud import restaurant_profile as restaurant_crud
 from app.models.offer import Offer
@@ -18,6 +19,8 @@ from app.schemas.restaurant_profile import (
     RestaurantStatusUpdate,
 )
 from app.schemas.user import UserRead
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(
     prefix="/admin",
@@ -72,7 +75,9 @@ async def list_users(
 
 
 @router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_user(user_id: uuid.UUID, db: DbSession) -> None:
+async def delete_user(
+    user_id: uuid.UUID, db: DbSession, current_user: CurrentUser
+) -> None:
     user = await db.get(User, user_id)
     if user is None:
         raise HTTPException(
@@ -80,6 +85,15 @@ async def delete_user(user_id: uuid.UUID, db: DbSession) -> None:
         )
     await db.delete(user)
     await db.commit()
+    logger.info(
+        "admin deleted user",
+        extra={
+            "actor_id": str(current_user.id),
+            "target_user_id": str(user_id),
+            "target_email": user.email,
+            "target_role": user.role.value,
+        },
+    )
 
 
 @router.get("/restaurants", response_model=PaginatedRestaurants)
@@ -108,14 +122,27 @@ async def list_restaurants(
 
 @router.patch("/restaurants/{restaurant_id}/status", response_model=RestaurantProfileRead)
 async def set_restaurant_status(
-    restaurant_id: uuid.UUID, payload: RestaurantStatusUpdate, db: DbSession
+    restaurant_id: uuid.UUID,
+    payload: RestaurantStatusUpdate,
+    db: DbSession,
+    current_user: CurrentUser,
 ) -> RestaurantProfileRead:
     profile = await restaurant_crud.get_by_id(db, restaurant_id)
     if profile is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Restaurant not found"
         )
+    old_status = profile.status
     profile = await restaurant_crud.set_status(db, profile, payload.status)
+    logger.info(
+        "admin changed restaurant status",
+        extra={
+            "actor_id": str(current_user.id),
+            "restaurant_id": str(restaurant_id),
+            "old_status": old_status.value,
+            "new_status": profile.status.value,
+        },
+    )
     return RestaurantProfileRead.model_validate(profile)
 
 
